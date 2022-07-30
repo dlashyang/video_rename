@@ -2,3 +2,4 @@
 *.MP4
 tmp
 go.sum
+*.json
