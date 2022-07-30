@@ -21,19 +21,37 @@ type rename_list struct {
 
 func main() {
 	log.Println("Start.")
-	list := rename_list{}
-
-	files, err := os.ReadDir(".")
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	dir_name, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
 	}
-	list.Path_base = dir_name
-	fmt.Println(dir_name)
+
+	json_str, err := gen_rename_list(dir_name)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = rename_by_list(json_str)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Print("Done.")
+}
+
+func gen_rename_list(path_base string) ([]byte, error) {
+	log.Println("generate file list in: ", path_base)
+
+	list := rename_list{}
+	list.Path_base = path_base
+	var json_str []byte
+
+	files, err := os.ReadDir(path_base)
+	if err != nil {
+		log.Fatal(err)
+		return json_str, err
+	}
 
 	for _, file := range files {
 		if true == file.IsDir() {
@@ -47,22 +65,21 @@ func main() {
 		}
 
 		old_name := file.Name()
-		fmt.Println(filepath.Join(dir_name, old_name))
+		fmt.Println(filepath.Join(path_base, old_name))
 		name := strings.Split(old_name, ".")
 		name[0] += "_new"
 		new_name := strings.Join(name, ".")
-		fmt.Println(filepath.Join(dir_name, new_name))
+		fmt.Println(filepath.Join(path_base, new_name))
 		list.V_file = append(list.V_file, rename_candidate{old_name, new_name})
 	}
 
-	json_str, err := json.Marshal(list)
+	json_str, err = json.Marshal(list)
 	if err != nil {
 		log.Fatal(err)
+		return json_str, err
 	}
 	fmt.Printf("%s\n", json_str)
-
-	rename_by_list(json_str)
-	log.Print("Done.")
+	return json_str, nil
 }
 
 func rename_by_list(rlist []byte) error {
@@ -71,11 +88,11 @@ func rename_by_list(rlist []byte) error {
 	err := json.Unmarshal(rlist, &list)
 	if err != nil {
 		log.Fatal(err)
+		return err
 	}
 
 	for _, file := range list.V_file {
-		fmt.Println("old name: ", filepath.Join(list.Path_base, file.Old_name))
-		fmt.Println("new name: ", filepath.Join(list.Path_base, file.New_name))
+		fmt.Println("rename: ", filepath.Join(list.Path_base, file.Old_name), "-->", filepath.Join(list.Path_base, file.New_name))
 		/*
 			err := os.Rename(filepath.Join(dir_name, old_name), filepath.Join(dir_name, new_name))
 			if err != nil {
