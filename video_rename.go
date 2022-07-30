@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -27,12 +28,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	json_str, err := gen_rename_list(dir_name)
+	_, err = gen_rename_list(dir_name)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = rename_by_list(json_str)
+	err = rename_by_list("info.json")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -65,27 +66,35 @@ func gen_rename_list(path_base string) ([]byte, error) {
 		}
 
 		old_name := file.Name()
-		fmt.Println(filepath.Join(path_base, old_name))
-		name := strings.Split(old_name, ".")
-		name[0] += "_new"
-		new_name := strings.Join(name, ".")
-		fmt.Println(filepath.Join(path_base, new_name))
+		new_name := gen_new_name(old_name)
 		list.V_file = append(list.V_file, rename_candidate{old_name, new_name})
 	}
 
-	json_str, err = json.Marshal(list)
+	//json_str, err = json.Marshal(list)
+	json_str, err = json.MarshalIndent(list, "", "  ")
 	if err != nil {
 		log.Fatal(err)
 		return json_str, err
 	}
-	fmt.Printf("%s\n", json_str)
+
+	write_rename_list_file("info.json", json_str)
+	//fmt.Printf("%s\n", json_str)
 	return json_str, nil
 }
 
-func rename_by_list(rlist []byte) error {
-	log.Println("Start to rename.")
+func gen_new_name(old_name string) string {
+	name := strings.Split(old_name, ".")
+	name[0] += "_new"
+	new_name := strings.Join(name, ".")
+	return new_name
+}
+
+func rename_by_list(json_file_name string) error {
+	log.Println("rename below files:")
 	list := rename_list{}
-	err := json.Unmarshal(rlist, &list)
+
+	info := read_rename_list_file(json_file_name)
+	err := json.Unmarshal(info, &list)
 	if err != nil {
 		log.Fatal(err)
 		return err
@@ -100,5 +109,31 @@ func rename_by_list(rlist []byte) error {
 			}
 		*/
 	}
+	return nil
+}
+
+func read_rename_list_file(file_name string) []byte {
+	info, err := ioutil.ReadFile(file_name)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return info
+}
+
+func write_rename_list_file(json_file_name string, info []byte) error {
+	filePtr, err := os.Create(json_file_name)
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+	defer filePtr.Close()
+
+	_, err = filePtr.Write(info)
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+
 	return nil
 }
