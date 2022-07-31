@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -23,12 +24,21 @@ type rename_list struct {
 func main() {
 	log.Println("Start.")
 
-	dir_name, err := os.Getwd()
-	if err != nil {
-		log.Fatal(err)
+	flag.Parse()
+	args := flag.Args()
+	if len(args) < 1 {
+		log.Fatal("Not enough arguments.")
 	}
+	dir_name := args[0]
 
-	_, err = gen_rename_list(dir_name)
+	/*
+		dir_name, err := os.Getwd()
+		if err != nil {
+			log.Fatal(err)
+		}
+	*/
+
+	_, err := gen_rename_list(dir_name)
 	if err != nil {
 		log.Fatal(err)
 	}
