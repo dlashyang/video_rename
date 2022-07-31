@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/tigrato/go-mediainfo"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type rename_candidate struct {
@@ -76,7 +78,7 @@ func gen_rename_list(path_base string) ([]byte, error) {
 		}
 
 		old_name := file.Name()
-		new_name := gen_new_name(old_name)
+		new_name := gen_new_name(path_base, old_name)
 		list.V_file = append(list.V_file, rename_candidate{old_name, new_name})
 	}
 
@@ -92,9 +94,18 @@ func gen_rename_list(path_base string) ([]byte, error) {
 	return json_str, nil
 }
 
-func gen_new_name(old_name string) string {
+func gen_new_name(path_base string, old_name string) string {
+	mi := mediainfo.New()
+	if err := mi.Open(filepath.Join(path_base, old_name)); err != nil {
+		log.Fatal(err)
+	}
+
+	en_date := mi.GetKind(mediainfo.StreamGeneral, 0, "Encoded_Date", mediainfo.InfoText)
+	t, _ := time.Parse("UTC 2006-01-02 15:04:05", en_date)
+	cap_date := t.Format("20060102_150405")
+
 	name := strings.Split(old_name, ".")
-	name[0] += "_new"
+	name[0] = cap_date
 	new_name := strings.Join(name, ".")
 	return new_name
 }
