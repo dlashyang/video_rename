@@ -23,11 +23,11 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("rename called")
-		is_dry_run, _ := cmd.Flags().GetBool("dry-run")
-		fmt.Println("dry-run? ", is_dry_run)
-		list_name, _ := cmd.Flags().GetString("list")
-		fmt.Println("rename list is: ", list_name)
-		util.Rename_by_list(list_name, is_dry_run)
+		flagDryRun, _ := cmd.Flags().GetBool("dry-run")
+		fmt.Println("dry-run? ", flagDryRun)
+		listName, _ := cmd.Flags().GetString("list")
+		fmt.Println("list file: ", listName)
+		util.RenamebyList(listName, flagDryRun)
 	},
 }
 

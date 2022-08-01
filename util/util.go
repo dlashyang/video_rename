@@ -12,14 +12,14 @@ import (
 	"time"
 )
 
-type rename_candidate struct {
-	Old_name string `json:"old_name"`
-	New_name string `json:"new_name"`
+type renameCandidate struct {
+	OldName string `json:"video_file"`
+	NewName string `json:"new_name"`
 }
 
-type rename_list struct {
-	Path_base string             `json:"path"`
-	V_file    []rename_candidate `json:"list"`
+type candidateList struct {
+	PathBase      string            `json:"path_base"`
+	CandidateList []renameCandidate `json:"candidate_list"`
 }
 
 /*
@@ -52,76 +52,79 @@ func main() {
 }
 */
 
-func Gen_candidate_list(path_base string, list_name string) error {
-	log.Println("generate file list in: ", path_base)
+// GenCandidateList to generate the list file under given path
+func GenCandidateList(basePath string, listFileName string) error {
+	log.Println("generate file list in: ", basePath)
 
-	list := rename_list{}
-	list.Path_base = path_base
+	list := candidateList{}
+	list.PathBase = basePath
 
-	files, err := os.ReadDir(path_base)
+	files, err := os.ReadDir(basePath)
 	if err != nil {
 		log.Fatal(err)
 		return err
 	}
 
 	for _, file := range files {
-		if true == file.IsDir() {
+		if file.IsDir() {
 			continue
 		}
-		if true != strings.HasSuffix(strings.ToLower(file.Name()), ".mp4") {
+		if strings.HasSuffix(strings.ToLower(file.Name()), ".mp4") {
 			continue
 		}
-		if true == strings.Contains(file.Name(), "_new") {
+		if strings.Contains(file.Name(), "_new") {
 			continue
 		}
 
-		old_name := file.Name()
-		new_name := gen_new_name(path_base, old_name)
-		list.V_file = append(list.V_file, rename_candidate{old_name, new_name})
+		currentName := file.Name()
+		newName := genNewName(basePath, currentName)
+		list.CandidateList = append(list.CandidateList, renameCandidate{currentName, newName})
 	}
 
-	json_str, err := json.MarshalIndent(list, "", "  ")
+	jsonString, err := json.MarshalIndent(list, "", "  ")
 	if err != nil {
 		log.Fatal(err)
 		return err
 	}
 
-	write_rename_list_file(list_name, json_str)
+	writeListtoFile(listFileName, jsonString)
 	return nil
 }
 
-func gen_new_name(path_base string, old_name string) string {
+func genNewName(path string, fileName string) string {
 	mi := mediainfo.New()
-	if err := mi.Open(filepath.Join(path_base, old_name)); err != nil {
+	if err := mi.Open(filepath.Join(path, fileName)); err != nil {
 		log.Fatal(err)
 	}
 
-	en_date := mi.GetKind(mediainfo.StreamGeneral, 0, "Encoded_Date", mediainfo.InfoText)
-	t, _ := time.Parse("UTC 2006-01-02 15:04:05", en_date)
-	cap_date := t.Format("20060102_150405")
+	encodedDate := mi.GetKind(mediainfo.StreamGeneral, 0, "Encoded_Date", mediainfo.InfoText)
+	t, _ := time.Parse("UTC 2006-01-02 15:04:05", encodedDate)
+	captureDate := t.Format("20060102_150405")
 
-	name := strings.Split(old_name, ".")
-	name[0] = cap_date
-	new_name := strings.Join(name, ".")
-	return new_name
+	name := strings.Split(fileName, ".")
+	name[0] = captureDate
+	return strings.Join(name, ".")
 }
 
-func Rename_by_list(list_name string, flag_dry_run bool) error {
+/*
+RenamebyList reads list file to comple the rename.
+If the flagDryRun is true, it prints only.
+*/
+func RenamebyList(listFileName string, flagDryRun bool) error {
 	log.Println("rename below files:")
-	list := rename_list{}
+	list := candidateList{}
 
-	info := read_rename_list_file(list_name)
+	info := readListFile(listFileName)
 	err := json.Unmarshal(info, &list)
 	if err != nil {
 		log.Fatal(err)
 		return err
 	}
 
-	for _, file := range list.V_file {
-		if flag_dry_run {
-			fmt.Println("rename: ", filepath.Join(list.Path_base, file.Old_name), "-->", filepath.Join(list.Path_base, file.New_name))
-		} else {
-			err := os.Rename(filepath.Join(list.Path_base, file.Old_name), filepath.Join(list.Path_base, file.New_name))
+	for _, file := range list.CandidateList {
+		fmt.Println("rename: ", filepath.Join(list.PathBase, file.OldName), "-->", filepath.Join(list.PathBase, file.NewName))
+		if !flagDryRun {
+			err := os.Rename(filepath.Join(list.PathBase, file.OldName), filepath.Join(list.PathBase, file.NewName))
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -130,8 +133,8 @@ func Rename_by_list(list_name string, flag_dry_run bool) error {
 	return nil
 }
 
-func read_rename_list_file(file_name string) []byte {
-	info, err := ioutil.ReadFile(file_name)
+func readListFile(listFileName string) []byte {
+	info, err := ioutil.ReadFile(listFileName)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -139,15 +142,15 @@ func read_rename_list_file(file_name string) []byte {
 	return info
 }
 
-func write_rename_list_file(json_file_name string, info []byte) error {
-	filePtr, err := os.Create(json_file_name)
+func writeListtoFile(listFileName string, listContent []byte) error {
+	filePtr, err := os.Create(listFileName)
 	if err != nil {
 		log.Fatal(err)
 		return err
 	}
 	defer filePtr.Close()
 
-	_, err = filePtr.Write(info)
+	_, err = filePtr.Write(listContent)
 	if err != nil {
 		log.Fatal(err)
 		return err

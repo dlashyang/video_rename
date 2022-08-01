@@ -21,10 +21,10 @@ if no name for the candidate list is given, default name "mylist"
 would be used.`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		file_name, _ := cmd.Flags().GetString("list")
 		fmt.Println("genList called")
-		fmt.Println("candidate list is: ", file_name)
-		util.Gen_candidate_list(string(args[0]), file_name)
+		listFileName, _ := cmd.Flags().GetString("list")
+		fmt.Println("list file: ", listFileName)
+		util.GenCandidateList(string(args[0]), listFileName)
 	},
 }
 
